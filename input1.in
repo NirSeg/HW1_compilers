@@ -1,0 +1,15 @@
+PROGRAM omer
+	x FIXED;
+	y FIXED;
+{
+	x = -1;
+	y = 6-x+7;
+	IF (x>5) THEN 
+		IF (x<7) THEN
+			x=99;
+			y=99;
+		FI
+		x=33;
+	FI
+	
+}

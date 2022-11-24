@@ -1,0 +1,12 @@
+PROGRAM yossi
+	x FIXED;
+	y FIXED;
+{
+	x=0;
+	y=0;
+	WHILE( (x < 12) & (x>0) ) {
+		IF (x > 6) THEN
+			y=y+x;
+		FI
+	}
+}

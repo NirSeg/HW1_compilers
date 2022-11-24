@@ -1,0 +1,32 @@
+ldc 5
+ldc  1 
+neg 
+sto 
+ldc 6
+ldc 6
+ldc 5 
+ind 
+sub 
+inc 7 
+sto
+ldc 5
+ind 
+ldc 5 
+grt 
+fjp end_if_1
+ldc 5 
+ind 
+ldc 7 
+les 
+fjp end_if_2
+ldc 5 
+ldc 99 
+sto 
+ldc 6 
+ldc 99 
+sto
+end_if_2:
+ldc 5
+ldc 33 
+sto 
+end_if_1:

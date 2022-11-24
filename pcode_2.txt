@@ -1,0 +1,32 @@
+ldc 5 
+ldc 0 
+sto
+ldc 6
+ldc 0
+sto
+loop_1:
+ ldc 5
+ ind
+ldc 12
+les
+ldc 5
+ind
+ldc 0
+grt
+and
+fjp end_loop_1
+ldc 5
+ind
+ldc 6
+grt
+fjp end_if_1
+ldc 6
+ldc 6
+ind
+ldc 5
+ind
+add
+sto
+end_if_1
+ujp loop_1
+end_loop_1: 

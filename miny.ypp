@@ -1,0 +1,225 @@
+%{
+#include <iostream>
+#include <stack>
+#include <string>
+#include "ast.h"
+
+extern "C" { 
+	int yylex(void); 
+	extern int line_number;
+}
+
+// Bring the standard library into the
+// global namespace
+using namespace std;
+
+// Prototypes to keep the compiler happy
+//#define yyerror(x) { printf("%s in line %d\n",x,line_number);}
+Object * root;  
+void yyerror (const char *error);
+
+//void clear_stack ();
+
+// stack class that takes care of all the nodes that were allocated
+stack <Object *> nodes;
+%}
+
+%token PROGRAM BBEGIN END DECLARE PROCEDURE  FUNCTION LABEL INTEGER REAL RECORD
+%token BOOLEAN ARRAY OF ASSIGN LC RC IF THEN ELSE WHILE REPEAT FI DO OD
+%token READ WRITE TRUE FALSE ADD MIN MUL DIV GOTO
+%token MOD LES LEQ EQU NEQ GRE GEQ AND OR
+%token NOT CASE FOR FIN IDENTICAL FROM BY TO NEW
+%token<code_> INTCONST
+%token<str_> IDE
+%token<real_> REALCONST
+%token<str_> STRING
+
+%union{ 
+   int code_;
+   double real_;
+   char * str_;
+   struct Object * node_;
+ }
+ 
+ /* Lets inform Bison about the type of each terminal and non-terminal */
+%type<node_> var assign program stat_seq loop_stat case_stat decl_list decl
+%type<node_> expr atom block stat nonlable_stat cond_stat case case_list
+%type<node_> var_decl type simple_type array_type record_type address_type ide_type
+%type<node_> record_list dim proc_decl formal_list formal func_decl proc_stat expr_list
+%type<node_> inout_stat new_stat
+%nonassoc LES LEQ EQU NEQ GRE GEQ
+%left ADD MIN OR
+%left MUL DIV AND MOD
+%right NOT DUMMY
+%right '.'
+%right '^'
+
+%start  program
+
+%%
+program: PROGRAM IDE block            {$$ = new Program($3,$2); root=$$;}
+       ;
+
+block :LC stat_seq RC                   {$$ = new Block($2);}
+      |decl_list LC stat_seq RC         {$$ = new Block($1,$3);}
+	    ;
+
+decl_list: decl                        {$$ = new DeclarationList($1);}
+         |decl_list decl               {$$ = new DeclarationList($1,$2);}
+		     ;
+
+decl: var_decl                         {$$ =  $1;}
+    | proc_decl                        {$$ = $1;}
+	  | func_decl                        {$$ = $1;}
+	  ;
+
+proc_decl: PROCEDURE IDE block                              { $$ = new ProcedureDeclaration($3,$2);}
+         |PROCEDURE IDE '(' formal_list ')' block           { $$ = new ProcedureDeclaration($4,$6,$2);}
+         ;
+
+func_decl: FUNCTION IDE ':' type block                      {$$ = new FunctionDeclaration($4,$5,$2);}
+         | FUNCTION IDE '(' formal_list ')' ':' type block  {$$ = new FunctionDeclaration($7,$4,$8,$2);}
+         ;
+formal_list: formal                                         {$$ = new ParameterList($1);}
+           | formal ',' formal_list                         {$$ = new ParameterList($1,$3);}
+           ;
+
+formal:  IDE type                                           {$$ = new ByValueParameter($2,$1);}
+      | IDE type IDENTICAL                                  {$$ = new ByReferenceParameter($2,$1);}
+      ;
+
+var_decl: IDE type ';'                                      {$$ = new VariableDeclaration($2,$1);}
+        ;
+
+type:   simple_type                    { $$ = $1; }
+      | array_type                     { $$ = $1; }
+      | record_type                    { $$ = $1; }
+      | address_type                   { $$ = $1; }
+      | ide_type                       { $$ = $1; }
+	   ;
+	   
+simple_type:  INTEGER                  {$$ = new SimpleType("Integer");}
+             |REAL                     {$$ = new SimpleType("Real");}
+             |BOOLEAN                  {$$ = new SimpleType("Boolean");}
+             ;
+
+array_type: ARRAY '[' INTCONST  ':' INTCONST ']' OF type  { $$ = new ArrayType($3,$5,$8); }
+          ;
+
+record_type: RECORD LC record_list RC      { $$ = new RecordType($3);}
+           ;
+
+record_list:  var_decl                     { $$ = new RecordList($1);}
+           |  var_decl record_list         { $$ = new RecordList($1,$2);}
+		       ;
+
+address_type: '^' type                     { $$ = new AddressType($2);}
+            ;
+
+ide_type: IDE                              { $$ = new IdeType($1);}
+        ;
+
+stat_seq: stat                             {$$ = new StatementList($1);}
+        | stat stat_seq                    {$$ = new StatementList($1,$2);}
+		    ;
+
+stat:    nonlable_stat                     {$$=$1;}
+         ;
+
+nonlable_stat:  assign';'                  {$$=$1;}
+             | cond_stat                   {$$=$1;}
+			       | loop_stat                   {$$=$1;}
+			       | case_stat                   {$$=$1;}
+	           | proc_stat ';'               {$$=$1;}
+			       | inout_stat ';'              {$$=$1;}
+			       | new_stat ';'                {$$=$1;}
+			       ;
+
+new_stat: NEW '(' var ')'                  {$$ = new NewStatement($3);}
+        ;
+
+proc_stat: IDE '(' expr_list ')'     {$$ = new ProcedureStatement($3,$1);}
+          |IDE '('  ')'              {$$ = new ProcedureStatement($1);}
+          ;
+
+inout_stat: WRITE '(' expr ')'       {$$ = new WriteVarStatement($3);}
+           |WRITE '(' STRING  ')'    {$$ = new WriteStrStatement($3);}
+           ;
+           
+expr_list: expr                      {$$ = new ExprList($1);}
+         | expr ',' expr_list        {$$ = new ExprList($1,$3);}
+		     ;
+
+assign :  var ASSIGN expr            {$$ = new Assign($3,$1);}
+       ;
+
+cond_stat: IF expr THEN stat_seq FI                        {$$ = new ConditionalStatement($2,$4);}
+          |IF expr THEN stat_seq  ELSE  stat_seq FI        {$$ = new ConditionalStatement($2,$4,$6);}
+          ;
+
+loop_stat: WHILE expr LC  stat_seq RC                      {$$ = new LoopStatement($2,$4);}
+         ;
+
+case_stat :CASE expr OF LC case_list RC                    {$$ = new CaseStatement($2,$5);}
+          ;
+
+case_list:  case                       {$$ = new CaseList($1);}
+         |case case_list               {$$ = new CaseList($1,$2);}
+         ;
+         
+case :  INTCONST ':' stat_seq          {$$ = new Case($3,$1);}
+     ;
+
+var:   IDE                            { $$ = new IdeType($1);}
+     | var dim                        { $$ = new ArrayRef($1,$2); }
+     | var '.' var                    { $$ = new RecordRef($1,$3);}
+  	 | var '^'                        { $$ = new AddressRef($1);}
+	   ;
+
+dim  :'[' expr ']'                    { $$ = new Dim($2); }
+     |'[' expr ']' dim                { $$ = new Dim($2,$4); }
+     ;
+
+expr:   expr ADD expr                 { $$ = new Expr(ADD,$3,$1);}
+      | expr MIN expr                 { $$ = new Expr(MIN,$3,$1);}
+      | expr MUL expr                 { $$ = new Expr(MUL,$3,$1);}
+      | expr DIV expr                 { $$ = new Expr(DIV,$3,$1);}
+      | expr MOD expr                 { $$ = new Expr(MOD,$3,$1);}
+      | expr LES expr                 { $$ = new Expr(LES,$3,$1);}
+      | expr LEQ expr                 { $$ = new Expr(LEQ,$3,$1);}
+      | expr EQU expr                 { $$ = new Expr(EQU,$3,$1);}
+      | expr NEQ expr                 { $$ = new Expr(NEQ,$3,$1);}
+      | expr GRE expr                 { $$ = new Expr(GRE,$3,$1);}
+      | expr GEQ expr                 { $$ = new Expr(GEQ,$3,$1);}
+  	  | expr AND expr                 { $$ = new Expr(AND,$3,$1);}
+      | expr OR expr                  { $$ = new Expr(OR,$3,$1);}
+      | '(' expr ')'                  { $$ = $2; }
+      | MIN atom %prec DUMMY          { $$ = new Expr(MIN,$2); }
+      | NOT atom                      { $$ = new Expr(NOT,$2); }
+      | atom                          { $$ = $1; }
+	    |proc_stat                      {$$=$1;}
+      ;
+
+
+atom:   var                          { $$ = $1; }
+      | INTCONST                     { $$ = new IntConst($1); }
+      | REALCONST                    { $$ = new RealConst($1);}
+      | TRUE                         { $$ = new True(); }
+      | FALSE                        { $$ = new False(); }
+      ;
+
+%%
+// Deallocate all the nodes 
+void clear_stack ()
+{
+  while (!nodes.empty ()) {
+    delete nodes.top ();
+    nodes.pop ();
+  }
+}
+
+void yyerror(char const * msg)
+{
+	fprintf(stderr, "Parse error: %s", msg);
+}
+

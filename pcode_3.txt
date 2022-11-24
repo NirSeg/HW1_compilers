@@ -1,0 +1,32 @@
+ldc 5 
+ldc 3
+sto
+ldc 5
+ind 
+neg 
+ixj end_switch_1
+case_1_1 :
+ldc 5 
+ldc 6
+sto
+ujp end_switch_1
+case_2_1 : 
+ldc 5
+ldc 10
+sto 
+ujp end_switch_1
+case_3_1 : 
+ldc 5
+ldc 50
+sto 
+ujp end_switch_1
+case_4_1 : 
+ldc 5
+ldc 30
+sto 
+ujp end_switch_1
+ujp case_4_1
+ujp case_3_1
+ujp case_2_1
+ujp case_1_1
+end_switch_1:
