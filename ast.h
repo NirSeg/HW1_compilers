@@ -695,7 +695,6 @@ public :
   }
   void pcodegen(ostream& os) {
       assert(var_ && exp_);
-      var_->pcodegen(os);
       exp_->pcodegen(os);
       var_->pcodegen(os);
   }
