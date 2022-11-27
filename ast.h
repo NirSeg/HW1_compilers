@@ -690,13 +690,14 @@ public :
   void print (ostream& os) {
 		os<<"Node name : Assign";
 		assert(var_ && exp_);
-    var_->print(os);
     exp_->print(os);
+    var_->print(os);
   }
   void pcodegen(ostream& os) {
       assert(var_ && exp_);
       var_->pcodegen(os);
       exp_->pcodegen(os);
+      var_->pcodegen(os);
   }
   virtual Object * clone () const { return new Assign(*this);}
 
