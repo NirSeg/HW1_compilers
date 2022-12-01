@@ -792,14 +792,16 @@ public :
 		stat_list_->print(os);
   }
   void pcodegen(ostream& os) {
-      assert(exp_ && stat_list_);
-      // label 
-      exp_->pcodegen(os);
-      // fjp
-      stat_list_->pcodegen(os);
-      // ujp
-      // label end
-  }
+        assert(exp_ && stat_list_);
+        // label
+        os << "loop_" + counterWhile + ": " << endl; 
+        exp_->pcodegen(os);
+        os << "fjp end_loop_" + counterWhile << endl;
+        stat_list_->pcodegen(os);
+        os << "ujp loop_" + counterWhile << endl;
+        os << "loop_" + counterWhile + ": " << endl;
+        counterWhile++;
+    }
   virtual Object * clone () const { return new LoopStatement(*this);}
 
 private:
