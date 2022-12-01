@@ -77,48 +77,44 @@
 #include <assert.h>
 #include <string>
 #include <map>
+#include <iomanip>
 
 using namespace std;
 
 // {new
-static int address=5;
+static int stackAddress=5;
 // new}
 
 // {new
 // holds the type the address and the size
-class Informantion{
-  public:
-  Informantion(const string& type, const int& address, const int& size){
-    this->type=type;
-    this->address=address;
-    this->size=size;
-  }
-  int getAddress(){
-    return this->address;
-  }
-  private:
+struct Information
+{
   string type;
-  int address;
-  int size;
+  int address, size;
 };
+
 
 // The Symbol Table
 class SymbolTable{
   public:
   SymbolTable(){
-    address = 5;
+    stackAddress = 5;
   }
-  void insertVariable(const string& name, const string& type, const int& size){
-    Informantion info(type, address, size);
-    symbolTable[name] = &info;
-    address += size;
+  bool insertVariable(string name, string type, int size){
+    symbolTable[name] = new Information;
+    symbolTable[name]->type = type;
+    symbolTable[name]->size = size;
+    symbolTable[name]->address = stackAddress;
+    stackAddress += size;
+    return true;
   }
   int findAddress(const string& name){
-    return (*symbolTable[name]).getAddress();
+    if(symbolTable[name] == NULL) return -1;
+    return symbolTable[name]->address;
   }
   private:
     // map = (name, (type, address, size))
-    map<string, Informantion*> symbolTable;
+    map<string, Information*> symbolTable;
     // current address
 };
 // new}
@@ -232,7 +228,7 @@ public :
             os << "sub" << endl; // need to take care of dec
           break;
         case 288:
-          os << "mull" << endl;
+          os << "mul" << endl;
           break;
         case 289:
           os << "div" << endl;
@@ -368,10 +364,14 @@ public:
   }
   void pcodegen(ostream& os) {
     // {new 
-    if(flagAddConst)
+    if(flagAddConst){
       os << "inc " << i_ << endl;
-    else if(flagSubConst)
+      flagAddConst = false;
+    }
+    else if(flagSubConst){
       os << "dec " << i_ << endl;
+      flagSubConst = false;
+    }
     else
       os << "ldc " << i_ << endl;
     // new}
@@ -392,12 +392,16 @@ public:
   }
   void pcodegen(ostream& os) {
     // {new 
-    if(flagAddConst)
-      os << "inc " << r_ << endl;
-    else if(flagSubConst)
+    if(flagAddConst){
+      os << "inc " << r_ << endl; 
+      flagAddConst = false;
+    }
+    else if(flagSubConst){
       os << "dec " << r_ << endl;
+      flagSubConst = false;
+    }
     else
-      os << "ldc " << r_ << endl;
+      os << "ldc " << std::fixed << std::setprecision(1) << r_ << endl;
     // new}
   }
   virtual Object * clone () const { return new RealConst(*this);}
@@ -610,7 +614,7 @@ public :
       assert(exp_);
       exp_->pcodegen(os);
       // {new
-      os << exp_ << endl << "print" << endl;
+      os << "print" << endl;
       // new}
   }
   virtual Object * clone () const { return new WriteVarStatement(*this);}
@@ -788,8 +792,12 @@ public :
   }
   void pcodegen(ostream& os) {
       assert(exp_ && stat_list_);
+      // label 
       exp_->pcodegen(os);
+      // fjp
       stat_list_->pcodegen(os);
+      // ujp
+      // label end
   }
   virtual Object * clone () const { return new LoopStatement(*this);}
 
@@ -1031,7 +1039,9 @@ public:
     // {new
     os << "ldc " << symboltable.findAddress(*name_) << endl;
     if(flagVariable)
-      os << "ind" << endl; 
+      os << "ind" << endl;
+    flagAddConst = false;
+    flagSubConst = false;
     // new}
   }
   virtual Object * clone () const { return new IdeType(*this);}
@@ -1157,7 +1167,7 @@ public:
       // {new
       symboltable.insertVariable(*name_, typeVariable, 1);
       // only for check
-      os << *name_ << " address is: " << symboltable.findAddress(*name_) << endl;
+      // os << *name_ << " address is: " << symboltable.findAddress(*name_) << endl;
       // new}
   }
   virtual Object * clone () const { return new VariableDeclaration(*this);}
