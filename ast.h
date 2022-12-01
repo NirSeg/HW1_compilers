@@ -101,6 +101,7 @@ class SymbolTable{
     stackAddress = 5;
   }
   bool insertVariable(string name, string type, int size){
+    if(symbolTable[name] != NULL) return false;
     symbolTable[name] = new Information;
     symbolTable[name]->type = type;
     symbolTable[name]->size = size;
