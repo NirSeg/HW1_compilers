@@ -127,7 +127,7 @@ class SymbolTable{
 extern bool flagAddConst; // for inc
 extern bool flagSubConst; // for dec
 extern bool flagVariable; // for ind
-extern bool flagInteger; // for variable declaration' Simple Type
+extern string typeVariable; // for variable declaration, Simple Type
 static int counterIf = 1; // counter for the number of ifs
 static int counterWhile = 1; // counter for the number of whiles
 static int counterSwitch = 1; // counter for the number of switches
@@ -1000,7 +1000,7 @@ public:
 	}
   void pcodegen(ostream& os) {
     // {new
-    flagInteger = true;
+    typeVariable = *name_;
     // new}
   }
   virtual Object * clone () const { return new SimpleType(*this);}
@@ -1155,10 +1155,7 @@ public:
       assert(type_);
       type_->pcodegen(os);
       // {new
-      if(flagInteger){
-        symboltable.insertVariable(*name_, "Integer", 1);
-        flagInteger = false;
-      }
+      symboltable.insertVariable(*name_, typeVariable, 1);
       // only for check
       os << *name_ << " address is: " << symboltable.findAddress(*name_) << endl;
       // new}
