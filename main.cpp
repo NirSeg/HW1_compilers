@@ -17,7 +17,13 @@
 #include "main.h"
 
 extern int yydebug;
-
+// {new
+bool flagAddConst; // for inc
+bool flagSubConst; // for dec
+bool flagVariable; // for ind
+bool flagInteger; // for variable declaration, Simple Type
+SymbolTable symboltable; // for symbol table
+// new}
 
 void writeAST(Object* r, fstream& file)
 {
@@ -73,7 +79,11 @@ int main(int argc, char* argv[])
 	fstream treeFile(TREE_OUTPUT_TEXT_FILE, ios::out);
 	fstream pcodeFile(OUTPUT_CODE_TEXT, ios::out);
 	treeFile << AST_FILE_HEADER << endl;
-	pcodeFile << AST_FILE_HEADER << endl;
+	// new
+	pcodeFile << "";
+	// original:
+	// pcodeFile << AST_FILE_HEADER << endl;
+	// new 
 	writeAST(theProgram, treeFile);
 	Pcode(theProgram, pcodeFile);
 	treeFile.close();
