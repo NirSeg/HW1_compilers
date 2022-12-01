@@ -78,6 +78,7 @@
 #include <string>
 #include <map>
 #include <iomanip>
+#include <stack>
 
 using namespace std;
 
@@ -125,9 +126,11 @@ extern bool flagAddConst; // for inc
 extern bool flagSubConst; // for dec
 extern bool flagVariable; // for ind
 extern string typeVariable; // for variable declaration, Simple Type
+static stack<int> counterSwitchStack; // // to count the number of switches
 static int counterIf = 1; // counter for the number of ifs
 static int counterWhile = 1; // counter for the number of whiles
 static int counterSwitch = 1; // counter for the number of switches
+static int counterCase = 1;
 extern SymbolTable symboltable; // for symbol table
 // new}
 
@@ -213,7 +216,7 @@ public :
       if(op_==286){
         flagAddConst = true;
       }
-      if(op_==286){
+      if(op_==287){
         flagSubConst = true;
       }
       // new}
@@ -365,14 +368,10 @@ public:
   }
   void pcodegen(ostream& os) {
     // {new 
-    if(flagAddConst){
+    if(flagAddConst)
       os << "inc " << i_ << endl;
-      flagAddConst = false;
-    }
-    else if(flagSubConst){
+    else if(flagSubConst)
       os << "dec " << i_ << endl;
-      flagSubConst = false;
-    }
     else
       os << "ldc " << i_ << endl;
     // new}
@@ -393,14 +392,10 @@ public:
   }
   void pcodegen(ostream& os) {
     // {new 
-    if(flagAddConst){
-      os << "inc " << r_ << endl; 
-      flagAddConst = false;
-    }
-    else if(flagSubConst){
-      os << "dec " << r_ << endl;
-      flagSubConst = false;
-    }
+    if(flagAddConst)
+      os << "inc " << std::fixed << std::setprecision(1) << r_ << endl; 
+    else if(flagSubConst)
+      os << "dec " << std::fixed << std::setprecision(1) << r_ << endl;
     else
       os << "ldc " << std::fixed << std::setprecision(1) << r_ << endl;
     // new}
@@ -725,10 +720,22 @@ public :
   }
   void pcodegen(ostream& os) {
       assert(case_);
+      // {new
+      int numCase = counterCase++;
+      // the case
+      os << "case_" << numCase << "_" << counterSwitchStack.top() << ":" << endl;
+      // new}
       case_->pcodegen(os);
+      // {new
+      // the ujp
+      os << "ujp end_switch_" << counterSwitchStack.top() << endl;
+      // new}
       if (case_list_) {
           case_list_->pcodegen(os);
       }
+      // {new
+      os << "ujp case_" << numCase << "_" << counterSwitchStack.top() << endl;
+      // new}
   }
   virtual Object * clone () const { return new CaseList(*this);}
 
@@ -759,9 +766,25 @@ public :
 		case_list_->print(os);
   }
   void pcodegen(ostream& os) {
-      assert(exp_ && case_list_);
-      exp_->pcodegen(os);
-      case_list_->pcodegen(os);
+    // {new
+    int numLastCase = counterCase;
+    counterCase = 1;
+    counterSwitchStack.push(counterSwitch++);
+    // new}
+    assert(exp_ && case_list_);
+    exp_->pcodegen(os);
+    // {new
+    // jump to the end and backwards: ixj
+    os << "neg" << endl << "ixj end_switch_" << counterSwitchStack.top() << endl;
+    // new}
+    case_list_->pcodegen(os);
+    // {new
+    // end switch
+    os << "end_switch_" << counterSwitchStack.top() << ":" << endl;
+    // return to the previous switch
+    counterSwitchStack.pop();
+    counterCase = numLastCase;
+    // new}
   }
   virtual Object * clone () const { return new CaseStatement(*this);}
   
