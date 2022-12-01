@@ -76,8 +76,69 @@
 #include <iostream>
 #include <assert.h>
 #include <string>
+#include <map>
 
 using namespace std;
+
+// {new
+static int address=5;
+// new}
+
+// {new
+// holds the type the address and the size
+class Informantion{
+  public:
+  Informantion(const string& type, const int& address, const int& size){
+    this->type=type;
+    this->address=address;
+    this->size=size;
+  }
+  int getAddress(){
+    return this->address;
+  }
+  private:
+  string type;
+  int address;
+  int size;
+};
+
+// The Symbol Table
+class SymbolTable{
+  public:
+  SymbolTable(){
+    address = 5;
+  }
+  void insertVariable(const string& name, const string& type, const int& size){
+    Informantion info(type, address, size);
+    symbolTable[name] = &info;
+    address += size;
+  }
+  int findAddress(const string& name){
+    return (*symbolTable[name]).getAddress();
+  }
+  private:
+    // map = (name, (type, address, size))
+    map<string, Informantion*> symbolTable;
+    // current address
+};
+// new}
+
+// {new
+extern bool flagAddConst; // for inc
+extern bool flagSubConst; // for dec
+extern bool flagVariable; // for ind
+extern bool flagInteger; // for variable declaration' Simple Type
+static int counterIf = 1; // counter for the number of ifs
+static int counterWhile = 1; // counter for the number of whiles
+static int counterSwitch = 1; // counter for the number of switches
+extern SymbolTable symboltable; // for symbol table
+// new}
+
+/*
+all the problems:
+- whiles and switches
+- assignment : idetype : problem doesnt give the real address
+*/
 
 /**
  * classes 
@@ -91,6 +152,7 @@ public:
  virtual ~Object () {}
 };
 
+// expressions
 class Expr : public Object {
 public :
   // Unary operations
@@ -127,17 +189,84 @@ public :
       right_->print(os);
     }
   }
+  
   void pcodegen(ostream& os) {
-      assert(op_);
-      if (unary_) {      
-          assert(atom_);
-          atom_->pcodegen(os);
+    flagAddConst = false; flagSubConst = false;
+    assert(op_);
+    if (unary_) {      
+        assert(atom_);
+        atom_->pcodegen(os);
+        // {new
+        switch(op_){
+          case 287:
+            os << "neg" << endl;
+            break;
+          case 300:
+            os << "not" << endl;
+            break;
+          default:
+            break;
+        }
+        // new}
+    }
+    else {         
+      assert(left_ && right_);
+      right_->pcodegen(os);
+      // {new
+      if(op_==286){
+        flagAddConst = true;
       }
-      else {         
-          assert(left_ && right_);
-          left_->pcodegen(os);
-          right_->pcodegen(os);
+      if(op_==286){
+        flagSubConst = true;
       }
+      // new}
+      left_->pcodegen(os);
+      // {new
+      switch (op_){
+        case 286:
+          if(!flagAddConst) // to handle inc
+            os << "add" << endl;
+          break;
+        case 287:
+          if(!flagSubConst)
+            os << "sub" << endl; // need to take care of dec
+          break;
+        case 288:
+          os << "mull" << endl;
+          break;
+        case 289:
+          os << "div" << endl;
+          break;
+        case 292:
+          os << "les" << endl;
+          break;
+        case 293:
+          os << "leq" << endl;
+          break;            
+        case 294:
+          os << "equ" << endl;
+          break;
+        case 295:
+          os << "neq" << endl;
+          break;
+        case 296:
+          os << "grt" << endl;
+          break;
+        case 297:
+          os << "geq" << endl;
+          break;
+        case 298:
+          os << "and" << endl;
+          break;
+        case 299:
+          os << "or" << endl;
+          break;
+        default:
+          break;
+      }
+      // new}
+    }
+    flagAddConst = false; flagSubConst = false;
   }
   virtual Object * clone () const { return new Expr(*this);}
   
@@ -149,6 +278,7 @@ private:
   Object * atom_;
 };
 
+// not for now
 class ExprList : public Object {
 public :
   ExprList (Object * expr) : expr_(expr),expr_list_(NULL){assert(expr_);}
@@ -186,6 +316,7 @@ private:
 	Object * expr_list_;
 };
 
+// not for now
 class Dim : public Object {
 public:
   Dim (Object * exp) : exp_(exp), dim_(NULL) {assert(exp_);}
@@ -226,6 +357,7 @@ private:
 class Atom : public Object {
 };
 
+// give integer numbers
 class IntConst : public Atom {
 public:
   IntConst(const int i) : i_(i) {}
@@ -235,13 +367,21 @@ public:
     os<<"Node name : IntConst. Value is :"<<i_<<endl;
   }
   void pcodegen(ostream& os) {
+    // {new 
+    if(flagAddConst)
+      os << "inc " << i_ << endl;
+    else if(flagSubConst)
+      os << "dec " << i_ << endl;
+    else
+      os << "ldc " << i_ << endl;
+    // new}
   }
   virtual Object * clone () const { return new IntConst(*this);}
-
 private:
   const int i_;
 };
 
+// give real numbers
 class RealConst : public Atom {
 public:
   RealConst(const double r) : r_(r) {}
@@ -251,38 +391,54 @@ public:
     os<<"Node name : RealConst. Value is :"<<r_<<endl;
   }
   void pcodegen(ostream& os) {
-      
+    // {new 
+    if(flagAddConst)
+      os << "inc " << r_ << endl;
+    else if(flagSubConst)
+      os << "dec " << r_ << endl;
+    else
+      os << "ldc " << r_ << endl;
+    // new}
   }
   virtual Object * clone () const { return new RealConst(*this);}
-
 private:
   const double r_;
 };
 
+// give true
 class True : public Atom {
 public:
   void print (ostream& os) {
     os<<"Node name : trueConst. Value is true"<<endl;
   }
   void pcodegen(ostream& os) {
+    // {new 
+    os << "ldc " << 1 << endl;
+    // new}
   }
   virtual Object * clone () const { return new True();}
 
 };
 
+// give false
 class False : public Atom {
 public :
   void print (ostream& os) {
     os<<"Node name : trueConst. Value is false"<<endl;
   }
   void pcodegen(ostream& os) {
+    // {new 
+    os << "ldc " << 0 << endl;
+    // new}
   }
   virtual Object * clone () const { return new False();}
 };
 
+// not for now
 class Var : public Atom {
 };
 
+// not for now
 class ArrayRef : public Var {
 public :
   ArrayRef (Object * var, Object * dim) : var_(var),dim_(dim) {assert(var_ && dim_);}
@@ -314,6 +470,7 @@ private:
   Object * dim_;
 };
 
+// not for now
 class RecordRef : public Var {
 public :
   RecordRef (Object * varExt, Object * varIn) : varExt_(varExt),varIn_(varIn) {assert(varExt_ && varIn_);}
@@ -345,6 +502,7 @@ private:
   Object * varIn_;
 };
 
+// not for now
 class AddressRef : public Var {
 public :
   AddressRef (Object * var) : var_(var) {assert(var_);}
@@ -371,9 +529,11 @@ private:
   Object * var_;
 };
 
+
 class Statement : public Object {
 };
 
+// not for now
 class NewStatement : public Statement {
 public :
   NewStatement (Object * var) : var_(var) {assert(var_);}
@@ -400,6 +560,7 @@ private:
   Object * var_;
 };
 
+// not for now
 class WriteStrStatement : public Statement {
 public :
   WriteStrStatement (const char * str) { 
@@ -427,6 +588,7 @@ private:
   string * str_;
 };
 
+// for now, print variable
 class WriteVarStatement : public Statement {
 public :
   WriteVarStatement (Object * exp) : exp_(exp) {assert(exp_);}
@@ -447,6 +609,9 @@ public :
   void pcodegen(ostream& os) {
       assert(exp_);
       exp_->pcodegen(os);
+      // {new
+      os << exp_ << endl << "print" << endl;
+      // new}
   }
   virtual Object * clone () const { return new WriteVarStatement(*this);}
   
@@ -454,6 +619,7 @@ private:
   Object * exp_;
 };
 
+// not for now
 class ProcedureStatement : public Statement {
 public :
   ProcedureStatement (const char * str) { 
@@ -493,6 +659,7 @@ private:
   string * str_;
 };
 
+// for now, connected to switch
 class Case : public Object {
 public :
   Case (Object * stat_list, int val) : leafChild_ (NULL), stat_list_(stat_list) {
@@ -527,7 +694,7 @@ private:
 	Object * leafChild_;
 };
 
-
+// for now, connected to switch
 class CaseList : public Object {
 public :
   CaseList (Object * ccase) : case_(ccase),case_list_(NULL) {assert(case_);}
@@ -565,6 +732,7 @@ private:
 	Object * case_list_;
 };
 
+// for now, connected to switch
 class CaseStatement : public Statement {
 public :
   CaseStatement (Object * exp, Object * case_list) : exp_(exp),case_list_(case_list) {assert(exp_ && case_list_);}
@@ -597,6 +765,7 @@ private:
 	Object * case_list_;
 };
 
+// for while
 class LoopStatement : public Statement {
 public :
   LoopStatement (Object * exp, Object * stat_list) : exp_(exp),stat_list_(stat_list) {assert(exp_ && stat_list_);}
@@ -629,7 +798,7 @@ private:
 	Object * stat_list_;
 };
 
-
+// for if & else
 class ConditionalStatement : public Statement {
 public :
   ConditionalStatement (Object * exp, Object * stat_list_if) : exp_(exp),stat_list_if_(stat_list_if), stat_list_else_(NULL) {assert(exp_ && stat_list_if_);}
@@ -657,12 +826,29 @@ public :
 		}
   }
   void pcodegen(ostream& os) {
-      assert(exp_ && stat_list_if_);
-      exp_->pcodegen(os);
-      stat_list_if_->pcodegen(os);
-      if (stat_list_else_) {
-          stat_list_else_->pcodegen(os);
-      }
+    // {new
+    int numIf = counterIf++;
+    // new}
+    assert(exp_ && stat_list_if_);
+    exp_->pcodegen(os);
+    // {new
+    os << "fjp ";
+    if(stat_list_else_)
+      os << "else_if_" << numIf << endl;
+    else
+      os << "end_if_" << numIf << endl;
+    // new}
+    stat_list_if_->pcodegen(os);
+    if (stat_list_else_) {
+      // {new
+      os << "ujp end_if_" << numIf << endl;
+      os << "else_if_" << numIf << ":" << endl;
+      // new}
+      stat_list_else_->pcodegen(os);
+    }
+    // {new
+    os << "end_if_" << numIf << ":" << endl;
+    // new}
   }
   virtual Object * clone () const { return new ConditionalStatement(*this);}
   
@@ -672,7 +858,7 @@ private:
 	Object * stat_list_else_;
 };
 
-
+// for assigntment
 class Assign : public Statement {
 public :
   Assign (Object * var, Object * exp) : var_(var), exp_(exp) {assert(var_ && exp_);}
@@ -695,8 +881,17 @@ public :
   }
   void pcodegen(ostream& os) {
       assert(var_ && exp_);
+      // {new
+      flagVariable = false;
+      // new}
       exp_->pcodegen(os);
+      // {new
+      flagVariable = true;
+      // new}
       var_->pcodegen(os);
+      // {new
+      os << "sto" << endl;
+      // new}
   }
   virtual Object * clone () const { return new Assign(*this);}
 
@@ -705,6 +900,7 @@ private:
   Object * exp_;
 };
 
+// for now, need to understand
 class StatementList : public Object {
 public :
   StatementList (Object * stat) : stat_list_(NULL), stat_(stat)  { assert(stat_);}
@@ -742,6 +938,7 @@ private:
   Object * stat_list_;
 };
 
+// not for now
 class RecordList : public Object {
 public :
   RecordList (Object * var_decl) : record_list_(NULL), var_decl_(var_decl)  { assert(var_decl_);}
@@ -782,6 +979,7 @@ private:
 class Type : public Object {
 };
 
+// for now, for declaration
 class SimpleType : public Type {
 public:
   SimpleType (const char * name) { 
@@ -801,6 +999,9 @@ public:
 		os<<"Type is : "<< (*name_) <<endl;
 	}
   void pcodegen(ostream& os) {
+    // {new
+    flagInteger = true;
+    // new}
   }
   virtual Object * clone () const { return new SimpleType(*this);}
 
@@ -808,6 +1009,7 @@ private:
   string * name_;
 };
 
+// for now, for declaration
 class IdeType : public Type {
 public:
   IdeType (const char * name) { 
@@ -826,6 +1028,11 @@ public:
     os<<"Node name : IdeType"<<endl;
   }
   void pcodegen(ostream& os) {
+    // {new
+    os << "ldc " << symboltable.findAddress(*name_) << endl;
+    if(flagVariable)
+      os << "ind" << endl; 
+    // new}
   }
   virtual Object * clone () const { return new IdeType(*this);}
 
@@ -833,6 +1040,7 @@ private:
   string * name_;
 };
 
+// not for now
 class ArrayType : public Type {
 public :
   ArrayType (int l,int u, Object * type) : low_(l),up_(u),type_(type)  { assert(type_);}
@@ -861,6 +1069,7 @@ private:
 	int low_,up_;
 };
 
+// not for now
 class RecordType : public Type {
 public :
   RecordType (Object * record_list) : record_list_(record_list)  { assert(record_list_);}
@@ -888,7 +1097,7 @@ private:
   Object * record_list_;
 };
 
-
+// not for now
 class AddressType : public Type {
 public :
   AddressType (Object * type) : type_(type)  { assert(type_);}
@@ -945,6 +1154,14 @@ public:
   void pcodegen(ostream& os) {
       assert(type_);
       type_->pcodegen(os);
+      // {new
+      if(flagInteger){
+        symboltable.insertVariable(*name_, "Integer", 1);
+        flagInteger = false;
+      }
+      // only for check
+      os << *name_ << " address is: " << symboltable.findAddress(*name_) << endl;
+      // new}
   }
   virtual Object * clone () const { return new VariableDeclaration(*this);}
 
@@ -953,6 +1170,7 @@ private:
   string * name_;
 };
 
+// not for now
 class Parameter : public Object {
 public :
   Parameter (Object * type, const char * name) : type_(type){
@@ -989,6 +1207,7 @@ private:
   string * name_;
 };
 
+// not for now
 class ByReferenceParameter : public Parameter {
 public :
 	ByReferenceParameter (Object * type, const char * name) : Parameter (type,name) {}
@@ -999,6 +1218,7 @@ protected:
 	}
 };
 
+// not for now
 class ByValueParameter : public Parameter {
 public :
 	ByValueParameter (Object * type, const char * name) : Parameter(type,name) {}
@@ -1009,6 +1229,7 @@ protected:
 	}
 };
 
+// not for now
 class ParameterList : public Object {
 public :
   ParameterList (Object * formal) : formal_(formal),  formal_list_(NULL) { assert(formal_);}
@@ -1046,6 +1267,7 @@ private:
   Object * formal_list_;
 };
 
+// not for now
 class FunctionDeclaration : public Declaration {
 public :
   FunctionDeclaration (Object * type, Object * block, const char * name) : type_(type), block_(block), formal_list_(NULL) {
@@ -1098,6 +1320,7 @@ private:
   string * name_;
 };
 
+// not for now
 class ProcedureDeclaration : public Declaration {
 public :
   ProcedureDeclaration (Object * block, const char * name) : formal_list_(NULL), block_(block) { 
@@ -1145,6 +1368,7 @@ private:
   string * name_;
 };
 
+// not for now
 class DeclarationList : public Object {
 public :
   DeclarationList (Object * decl) : decl_(decl), decl_list_(NULL) { assert(decl_);}
@@ -1182,6 +1406,7 @@ private:
   Object * decl_list_;
 };
 
+// for now, need to understand
 class Block : public Object {
 public :
   Block (Object * stat_seq) : stat_seq_(stat_seq), decl_list_(NULL)  { assert(stat_seq_);}
@@ -1220,6 +1445,7 @@ private:
   Object * stat_seq_;
 };
 
+// for now, need to understand
 class Program : public Object {
 public :
   Program (Object * block, const char * str) : block_(NULL) {
@@ -1257,6 +1483,5 @@ private:
 
 
 
-
-
 #endif //AST_H
+
