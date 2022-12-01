@@ -21,7 +21,7 @@ extern int yydebug;
 bool flagAddConst; // for inc
 bool flagSubConst; // for dec
 bool flagVariable; // for ind
-bool flagInteger; // for variable declaration, Simple Type
+string typeVariable; // for variable declaration, Simple Type
 SymbolTable symboltable; // for symbol table
 // new}
 
